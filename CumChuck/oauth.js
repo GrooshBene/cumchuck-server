@@ -189,11 +189,13 @@ app.get('/auth/facebook/token',
   });
 
   app.get('/user/userSelfInfo', function (req,res) {
-      var fb = new graph.Facebook(req.param('access_token'), 'v2.2');
-      fb.me(function(err, me) {
-          console.log(me);
-          res.send(200, me);
-      });
+      User.findOne({id : req.param('userId')}, function (err, result) {
+          if(err){
+              console.log('/user/userSelfInfo err');
+              throw err;
+          }
+          res.send(200, result);
+      })
   });
 
   app.post('/auth/user/destroyUser',passport.authenticate('facebook-token'), function(req,res){

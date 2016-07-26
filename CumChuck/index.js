@@ -133,7 +133,7 @@ var foursquare = require('node-foursquare-venues')(foursquare_client_id, foursqu
 function Room() {
     this.host = "";
     this.member = [];
-    this.id = "";
+    this.id = 0;
     this.title = "";
     this.content = "";
     this.resId = "";
@@ -197,7 +197,14 @@ app.post('/raid/admin/destroyRaid', function (req, res) {
 })
 
 app.post('/raid/admin/newRaid', function (req, res) {
-    if (rooms[req.param('raidid')] == undefined) {
+    var host_chk = false;
+    for (var i=0; i<rooms.length; i++){
+        if(rooms[i].host == req.param('hostId')){
+            host_chk = true;
+        }
+    }
+    console.log("Host Chk : "+host_chk);
+    if (rooms[req.param('raidId')] == undefined && host_chk==false) {
         room = new Room();
         rest = new Restraunt();
         Restraunt.find({resId : req.param('resId')}, function (err, result) {
@@ -206,23 +213,35 @@ app.post('/raid/admin/newRaid', function (req, res) {
                 throw err;
             }
             console.log(result);
-            room.id = req.param('raidid');
+            room.id = req.param('raidId');
             room.resId = req.param('resId');
             room.host = req.param('hostId');
             room.content = req.param('content');
             room.title = req.param('title');
             room.raidMax = req.param('raidMax');
             room.date = new Date();
-            room.raidPhoto = result[0].photo.prefix +result[0].photo.width+'x'+result[0].photo.height+ result[0].photo.suffix;
+            if(result[0].photo != undefined){
+                room.raidPhoto = result[0].photo.prefix +result[0].photo.width+'x'+result[0].photo.height+ result[0].photo.suffix;
+            }
+            else{
+                room.raidPhoto = "";
+            }
             room.resAddress = result[0].resAddress;
             room.resTitle = result[0].resTitle;
             rooms.push(room);
             res.send(200, room);
         });
     }
-    else if (rooms[req.param('raidid')] != undefined) {
+    else if (rooms[req.param('raidId')] != undefined) {
         res.send(400, "Failed");
     }
+    else if(host_chk == true){
+        res.send(406, "You Already Have Raid!");
+    }
+});
+
+app.post('/raid/length', function (req, res) {
+    res.send(200, rooms.length);
 })
 
 app.post('/raid/admin/addUser', function (req, res) {
@@ -286,18 +305,18 @@ app.post('/raid/self/escapeRaid', function (req, res) {
 app.post('/user/getSelfRaidStatus', function (req, res) {
     var myRaid = [];
     for (var i = 0; i < rooms.length; i++) {
-        if (rooms[i].host == res.param('userId')) {
+        if (rooms[i].host == req.param('userId')) {
             myRaid.push(rooms[i]);
         }
         else {
             continue;
         }
     }
-    if (myRaid == null) {
-        res.send(400, "Nothing");
+    if (myRaid.length != 0) {
+        res.send(200, myRaid);
     }
     else {
-        res.send(200, myRaid);
+        res.send(403, "Nothing");
     }
 })
 
@@ -378,7 +397,7 @@ app.post('/user/selfReview/postArticle', upload.array('reviewFiles', 12), functi
 });
 
 
-app.post('user/selfReview/deleteArticle', function (req, res) {
+app.post('/user/selfReview/deleteArticle', function (req, res) {
     Review.find({_id: req.param('articleKey')}, function (err, result) {
         if (err) {
             // res.send(401, "failed");
@@ -513,7 +532,7 @@ app.post('/user/favorite/addFavorite', function (req, res) {
                 console.log(err);
             }
             console.log(result_find);
-            favoriteArr = result_find.favorite;
+            favoriteArr = result_find[0].favorite;
             favoriteArr.push(req.param('resId'));
             User.update({id: req.param('userId')}, {favorite: favoriteArr}, function (err, result) {
                 if (err) {
@@ -625,43 +644,6 @@ app.post('/restaurant/info', function (req, res) {
             }
         });
     });
-    // Restraunt.find({id: req.param('resId')}, function (err, result_find) {
-    //     console.log(result_find);
-    //     if (err) {
-    //         console.log(err);
-    //         throw err;
-    //     }
-    //     if (result_find) {
-    //         Restraunt.update({id: req.param('resId')}, {average: average}, function (err, result_update) {
-    //             if (err) {
-    //                 console.log(err);
-    //                 throw err;
-    //             }
-    //             console.log(result_update);
-    //         })
-    //     }
-    //     if (!result_find) {
-    //         foursquare.venues.venue(query, function (err, result) {
-    //             if (err) {
-    //                 console.log(err);
-    //                 throw err;
-    //             }
-    //             else {
-    //                 rest.id = req.param('resId');
-    //                 rest.average = average;
-    //                 rest.photo = result;
-    //                 rest.save(function (err, silent) {
-    //                     if(err){
-    //                         console.log(err);
-    //                         throw err;
-    //                     }
-    //                     console.log(rest);
-    //                 });
-    //                 res.send(200, result);
-    //             }
-    //         });
-    //     }
-    // });
 
 
 app.post('/review/list', function (req, res) {
